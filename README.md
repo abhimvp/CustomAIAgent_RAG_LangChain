@@ -30,6 +30,9 @@ $
   - `google_generativeai`
   - `langchainhub`
   - command - `pip install python-dotenv requests langchain langchain-astradb google_generativeai langchainhub`
+  - `python -m pip install -U black` - python code formatter - shift+alt+F to use 
+  - `pip freeze > requirements.txt` - store the installed packages/libraries info
+  - Important : `pip install -U langchain-google-genai` - to work with Gemini LLM via langchain can be found in langchain documentation : https://python.langchain.com/api_reference/google_genai/index.html#
 
 - let's get different tokens and credentials that we need for this project into `.env` - in this file we store all of the sensitive credentials that we're going to need as we connect to various apis , databases & Gemini Model 1.0 pro
 - create a new token in our github profile - https://github.com/settings/tokens
@@ -46,9 +49,12 @@ $
 - we need to get all these .env variables :
 
 ```
-GITHUB_TOKEN=""
-ASTRA_DB_API_ENDPOINT=""
-ASTRA_DB_APPLICATION_TOKEN=""
+GITHUB_TOKEN="" from https://github.com/settings/tokens
+ASTRA_DB_API_ENDPOINT="" from https://astra.datastax.com/
+ASTRA_DB_APPLICATION_TOKEN="" from https://astra.datastax.com/
 <!-- ASTRA_DB_KEYSPACE="" -->
-GOOGLE_API_KEY=""
+GOOGLE_API_KEY="" from https://aistudio.google.com/apikey
 ```
+# Fetching Github issues
+- `python github.py`
+# Connect with llm and vector store and fetch similaritu with our input

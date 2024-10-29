@@ -6,12 +6,14 @@ from dotenv import load_dotenv
 import os
 
 # https://python.langchain.com/api_reference/google_genai/chat_models/langchain_google_genai.chat_models.ChatGoogleGenerativeAI.html#langchain_google_genai.chat_models.ChatGoogleGenerativeAI
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
 from langchain_astradb import AstraDBVectorStore
 from langchain.agents import create_tool_calling_agent, AgentExecutor
 from langchain.tools.retriever import create_retriever_tool
 from langchain import hub
 from github import fetch_github_issues, load_issues
+from note import note_tool_1
+from langchain.tools import StructuredTool
 
 load_dotenv()
 
@@ -72,19 +74,65 @@ if add_to_vector_store:
     vstore = connect_to_vector_store()
     vstore.add_documents(issues)
 
-    # results = vstore.similarity_search("flash messages", k=3)
-    # for res in results:
-    #     print(f"*{res.page_content} {res.metadata}")
-    #     $ python main.py
-    # C:\Users\abhis\Desktop\AIAgents\CustomAIAgent_RAG_LangChain\github\Lib\site-packages\langchain\_api\module_import.py:87: LangChainDeprecationWarning: Importing GuardrailsOutputParser from langchain.output_parsers is deprecated. Please replace the import with the following:
-    # from langchain_community.output_parsers.rail_parser import GuardrailsOutputParser
-    #   warnings.warn(
-    # Do you want to update the issues? (y/N): y
-    # *form update {'author': 'dkardhashi', 'comments': 0, 'body': None, 'labels': [], 'created_at': '2024-05-28T18:33:59Z'}
-    # *fix error method=sha256 {'author': 'jessicabrm', 'comments': 0, 'body': None, 'labels': [], 'created_at': '2024-07-19T08:40:53Z'}
-    # *where is the .cssi want to edit .css
-    #  {'author': 'kelopuu', 'comments': 1, 'body': 'i want to edit .css\r\n', 'labels': [], 'created_at': '2023-05-04T15:08:39Z'}
+# results = vstore.similarity_search("flash messages", k=3)
+# for res in results:
+#     print(f"*{res.page_content} {res.metadata}")
+#     $ python main.py
+# C:\Users\abhis\Desktop\AIAgents\CustomAIAgent_RAG_LangChain\github\Lib\site-packages\langchain\_api\module_import.py:87: LangChainDeprecationWarning: Importing GuardrailsOutputParser from langchain.output_parsers is deprecated. Please replace the import with the following:
+# from langchain_community.output_parsers.rail_parser import GuardrailsOutputParser
+#   warnings.warn(
+# Do you want to update the issues? (y/N): y
+# *form update {'author': 'dkardhashi', 'comments': 0, 'body': None, 'labels': [], 'created_at': '2024-05-28T18:33:59Z'}
+# *fix error method=sha256 {'author': 'jessicabrm', 'comments': 0, 'body': None, 'labels': [], 'created_at': '2024-07-19T08:40:53Z'}
+# *where is the .cssi want to edit .css
+#  {'author': 'kelopuu', 'comments': 1, 'body': 'i want to edit .css\r\n', 'labels': [], 'created_at': '2023-05-04T15:08:39Z'}
 
-# llm = ChatGoogleGenerativeAI(model="gemini-1.0-pro")
+
+retriever = vstore.as_retriever(search_kwargs={"k": 3})  # returns 3 documents
+retriever_tool = create_retriever_tool(
+    retriever,
+    name="github_search",
+    description="Search for information about github issues. For any questions about github issues, you must use this tool!",
+)
+# we provide what the tool actually is in this case it's vectore store database , langChain will automatically
+# allow the agent to invoke this & start querying for different documents
+# but the agent needs to know when to use it , in order to do that we have to provide it that data, the name is github_search
+# the description is what the agent will use to decide when to use this tool
+
+# now let's setup chain of kind of different prompts and return types & all the things we need to run this agent
+# we need to have a special prompt that kind of tells our AI (LLM) - Gemini , how to utilize these tools and how it should behave
+# Rather than writing our own prompt and trying to come up with one , we can actually download one from langChain HUb that's
+# Automatically configured to do everything we want
+
+# https://smith.langchain.com/hub/hwchase17/openai-functions-agent
+# Pull an object from the hub and returns it as a LangChain object.
+prompt = hub.pull("hwchase17/openai-functions-agent")
+
+# create the llm to use various tools
+llm = ChatGoogleGenerativeAI(model="gemini-1.0-pro")
+
+
+# note_tool = StructuredTool.from_function(
+#     func=note_tool,
+#     name="note",
+#     description="Tool to save notes in a local text file",
+#     return_direct=True,
+#     args_schema=None  # You can define a schema if needed
+# )
+
+tools = [retriever_tool, note_tool_1]
+agent = create_tool_calling_agent(llm, tools, prompt)
+
+# to execute the agent
+agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)  # type: ignore
+
+#  write a loop to utilize this agent executor , so that we can ask it various questions
+
+while (
+    question := input("Ask a question about github issues (or 'q' to quit): ")
+) != "q":
+    result = agent_executor.invoke({"input": question})
+    print(result["output"])
+
 # embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
 # embeddings.embed_query("What's our Q1 revenue?")
